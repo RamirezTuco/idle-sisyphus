@@ -3,10 +3,10 @@
 A static home for independent tools, with independently deployable application
 implementations under `apps/`.
 
-Chat CSV, Browser Task Runner (BTR), and Agentic Learning appear as
-**coming soon** in the public directory until their deployments are approved.
-Chat CSV is now implemented locally under `apps/chat-csv`; BTR and Agentic
-Learning have not been integrated yet. The deployed landing page has no
+Chat CSV is [live](https://chat-csv-bxaf227woa-uc.a.run.app) as a restricted
+Google-sign-in development preview. Browser Task Runner (BTR) and Agentic
+Learning remain **coming soon** and have not been integrated yet.
+The independently deployed landing page has no
 backend, accounts, uploads, AI usage, or workers. BTR does not require a worker.
 
 ## Run locally
@@ -57,7 +57,7 @@ The first release is a disposable public preview. Before integrating apps
 that retain external-user data, use the production separation and launch
 gates in [the requirements](sisyphus-platform-requirements.md).
 
-## Connect an application later
+## Applications
 
 ### Chat CSV
 
@@ -70,10 +70,13 @@ npm ci --prefix apps/chat-csv
 npm run dev:chat-csv
 ```
 
-Configure its own ignored `.env.local` as documented before making AI requests.
-The default local address is <http://127.0.0.1:3000>. Its Cloud Run deployment
-is prepared separately and disabled by default; the static portal stays live
-and unchanged. Source credentials and existing app data are not migrated.
+Configure its own ignored `.env.local` as documented before making local AI
+requests. The default local address is <http://127.0.0.1:3000>. The deployed
+app uses Vertex AI, a named Firestore database, and verified Google identity,
+with five queries per user and globally per UTC day. Only the approved operator
+account is allowlisted. Source credentials and existing app data are not migrated.
+The independent deployment flag defaults disabled for new setups; the configured
+development service is enabled after its first successful live query.
 
 ### Directory links
 
@@ -120,7 +123,9 @@ The portal infrastructure provisions only static hosting. Hosting traffic has qu
 may incur costs depending on the project's billing plan; review those
 limits and configure appropriate billing alerts before promoting the
 site. The live portal intentionally has no paid AI or worker execution. The
-Chat CSV application requires separate runtime/secret/database approval.
+Chat CSV has its own approved runtime/database setup. Project-wide billing
+emails are configured at INR 1,428.45/month (approximately USD 15 at setup),
+at 50%, 80%, and 100%. This is an alert budget, not a daily or hard spending cap.
 Do not add analytics, cookies, or data collection without documenting the
 resulting privacy and operational requirements.
 

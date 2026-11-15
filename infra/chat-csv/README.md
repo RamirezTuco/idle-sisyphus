@@ -1,5 +1,10 @@
 # Chat CSV deployment preparation
 
+Development service: <https://chat-csv-bxaf227woa-uc.a.run.app>. The approved
+setup has been provisioned and its first authenticated analysis completed.
+The runbook below remains approval-gated for any new environment or changes;
+the project-specific state and tester identities are ignored local files.
+
 **Preparation only. Nothing here authorizes cloud changes, billing changes, secret
 creation, image publication, deployment, or public release.** Deployment is
 disabled unless the repository variable `CHAT_CSV_DEPLOY_ENABLED` is exactly
@@ -67,6 +72,10 @@ USD 15 at the setup-time Google conversion), with 50%, 80%, and 100% actual-spen
 alerts to project owners and default billing recipients. The user's existing
 account budget is preserved. This is not a daily alert or a hard spending cap;
 reports/emails can be delayed.
+
+Firebase-managed Google-provider provisioning initialized Identity
+Platform-backed Authentication in this development project. Review its MAU
+pricing and the production launch gates before admitting external users.
 
 Runtime stays absent with `enable_runtime=false`. Enabling it requires a real
 own-repository `app@sha256:...` image and nonempty `allowed_uids` in default
@@ -157,7 +166,7 @@ creation responses: `gcloud services api-keys create` can print the operation's
 key material even with `--format=none`. Use the Console or a non-logging API
 flow, and rotate any key exposed in output.
 
-After approval, create a **new app-appropriate** Gemini Developer API key
+Only when selecting Developer mode, after approval, create a **new app-appropriate** Gemini Developer API key
 associated with the intended project through Google AI Studio/Google Cloud
 Console. Check API/key restrictions and service availability; do not enable or
 change billing without separate approval. In Secret Manager Console, select

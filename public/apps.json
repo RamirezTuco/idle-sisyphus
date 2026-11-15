@@ -4,8 +4,8 @@
     "name": "Chat CSV",
     "category": "Understand your data",
     "description": "Explore spreadsheets through conversation. Bring a CSV or XLSX file and ask better questions.",
-    "status": "coming-soon",
-    "url": null
+    "status": "live",
+    "url": "https://chat-csv-bxaf227woa-uc.a.run.app"
   },
   {
     "id": "btr",

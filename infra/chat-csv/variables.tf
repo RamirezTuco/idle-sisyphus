@@ -43,7 +43,7 @@ variable "model_provider" {
 }
 
 variable "enable_runtime" {
-  description = "Create the public UI service only after separate approval, secret setup, and bootstrap image publication."
+  description = "Create the public UI only after approval, Google auth setup, bootstrap image publication, and secret setup if using Developer mode."
   type        = bool
   default     = false
 }

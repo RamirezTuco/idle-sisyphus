@@ -3,6 +3,9 @@
 An independent Next.js application adapted from the supplied Chat CSV project.
 The Sisyphus landing page stays static and deploys separately.
 
+Development URL: <https://chat-csv-bxaf227woa-uc.a.run.app>. Google sign-in is
+required, and access is restricted to the approved operator's account.
+
 ## What was reused
 
 | Source behavior | Implementation here |
