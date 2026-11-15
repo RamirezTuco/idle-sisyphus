@@ -3,7 +3,10 @@
 Terraform bootstraps Firebase Hosting and keyless GitHub deployment into an
 **existing Google Cloud project**. It creates no project, billing account, backend,
 worker, database, or runtime service. BTR has no runtime worker. Future apps are
-not provisioned. No cloud provisioning or deployment has been performed here.
+not provisioned. Site content is published separately by the deployment workflow.
+
+The development project is `idle-sisyphus` (number `597305374429`), and the
+repository is `RamirezTuco/idle-sisyphus` on `main`.
 
 ## Prerequisites and state
 
@@ -33,10 +36,10 @@ scope. Commit `.terraform.lock.hcl`; it locks both stable and beta providers.
 Run from the repository root with your own authorized account:
 
 ```sh
-export PROJECT_ID="your-existing-project-id"
+export PROJECT_ID="idle-sisyphus"
 gcloud auth login
 gcloud auth application-default login
-# These APIs must already be available for quota/project bootstrap.
+# Run API enablement only after approval to change the project.
 gcloud services enable serviceusage.googleapis.com cloudresourcemanager.googleapis.com \
   --project="$PROJECT_ID"
 gcloud auth application-default set-quota-project "$PROJECT_ID"
@@ -44,8 +47,10 @@ cd infra
 cp terraform.tfvars.example development.tfvars
 # Edit development.tfvars: project_id, exact GitHub owner/repo, github_branch.
 terraform init
-terraform plan -var-file=development.tfvars
-terraform apply -var-file=development.tfvars
+terraform plan -var-file=development.tfvars -out=development.tfplan
+# Review the concrete plan and obtain approval before applying.
+terraform apply development.tfplan
+chmod 600 terraform.tfstate
 ```
 
 Review the plan before applying. If Firebase was already added to the project,
@@ -96,6 +101,12 @@ In GitHub **Settings > Secrets and variables > Actions > Variables**, set
 `GCP_PROJECT_ID`, `WIF_PROVIDER`, and `DEPLOY_SERVICE_ACCOUNT` to those exact
 outputs. `SITE_URL` is informational; optionally save it as a repository variable.
 For a branch other than `main`, also set `DEPLOY_BRANCH` to `github_branch`.
+Leave `DEPLOY_ENABLED` unset or `false` during bootstrap. Once the reviewed
+workflow is on main, infrastructure is applied, and the three identity/project
+variables are set, set `DEPLOY_ENABLED` to exactly `true`. Then manually run
+**Check and deploy** on main for the first release, or push another main commit.
+Changing a repository variable does not itself trigger the workflow. Set it back
+to `false` to disable future runs; this does not cancel an in-progress deployment.
 No service-account key or Firebase token secret is needed.
 
 Protect the deployment branch with required **Site checks** and **Terraform
@@ -108,10 +119,13 @@ releasing or transferring the configured GitHub namespace.
 Every PR/push checks the site (`npm ci`, `npm test`) and Terraform (`fmt`,
 credential-free `init -backend=false`, `validate`). PRs never authenticate to
 Google. Deployment waits for both checks and checks out the same commit, with
-OIDC permission only in the deploy job. Pushes deploy only relevant site,
-dependency, script, Firebase-config, or workflow changes; docs-only and
-Terraform-only changes still run checks but do not publish. **Run workflow**
-on the trusted branch redeploys manually. Deployment jobs are serialized.
+OIDC permission only in the deploy job. Once enabled, every push to the trusted
+branch can deploy, including documentation-only and Terraform-only commits.
+There is deliberately no site-path filter: a newer documentation commit must
+be able to publish site changes from a superseded run. **Run workflow** on the
+trusted branch redeploys manually. Deployment jobs are serialized; superseded
+commits are skipped before cloud authentication and the newer commit's run
+publishes instead. PRs and other branches never deploy.
 
 The deploy account has only Hosting Admin (includes Firebase project lookup)
 and Service Usage Consumer (quota consumption), with Workload Identity User

@@ -14,11 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      deploy_needed: ${{ steps.changes.outputs.deploy_needed }}
+      deploy_eligible: ${{ steps.deployment.outputs.eligible }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -26,27 +25,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - name: Detect deployable changes
-        id: changes
+      - name: Determine deployment eligibility
+        id: deployment
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          BEFORE_SHA: ${{ github.event.before }}
-          CURRENT_SHA: ${{ github.sha }}
-        shell: bash
-        run: |
-          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            echo "deploy_needed=true" >> "$GITHUB_OUTPUT"
-          elif [[ "$EVENT_NAME" != "push" ]]; then
-            echo "deploy_needed=false" >> "$GITHUB_OUTPUT"
-          elif [[ "$BEFORE_SHA" =~ ^0+$ ]] || ! git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
-            echo "deploy_needed=true" >> "$GITHUB_OUTPUT"
-          elif git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA" -- \
-            public/ firebase.json package.json package-lock.json scripts/ \
-            .github/workflows/ci.yml | grep -q .; then
-            echo "deploy_needed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "deploy_needed=false" >> "$GITHUB_OUTPUT"
-          fi
+          DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+          DEPLOY_BRANCH: ${{ vars.DEPLOY_BRANCH || 'main' }}
+        run: node scripts/deployment-policy.js eligible
 
   terraform:
     name: Terraform checks
@@ -71,13 +55,13 @@ jobs:
     name: Deploy Hosting
     needs: [site, terraform]
     if: >-
-      needs.site.outputs.deploy_needed == 'true' &&
+      needs.site.outputs.deploy_eligible == 'true' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       github.ref == format('refs/heads/{0}', vars.DEPLOY_BRANCH || 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
-      group: firebase-hosting-production
+      group: firebase-hosting-${{ vars.GCP_PROJECT_ID || github.repository }}
       cancel-in-progress: false
     permissions:
       contents: read
@@ -92,7 +76,16 @@ jobs:
           node-version: "24"
           cache: npm
       - run: npm ci
+      - name: Check current branch commit
+        id: current
+        env:
+          DEPLOY_BRANCH: ${{ vars.DEPLOY_BRANCH || 'main' }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$DEPLOY_BRANCH" --jq .object.sha)"
+          LATEST_SHA="$latest_sha" node scripts/deployment-policy.js current
       - name: Check deployment variables
+        if: steps.current.outputs.current == 'true'
         env:
           GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
           WIF_PROVIDER: ${{ vars.WIF_PROVIDER }}
@@ -102,6 +95,7 @@ jobs:
           test -n "$WIF_PROVIDER" || { echo "::error::Set WIF_PROVIDER"; exit 1; }
           test -n "$DEPLOY_SERVICE_ACCOUNT" || { echo "::error::Set DEPLOY_SERVICE_ACCOUNT"; exit 1; }
       - uses: google-github-actions/auth@v3
+        if: steps.current.outputs.current == 'true'
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: ${{ vars.WIF_PROVIDER }}
@@ -109,14 +103,7 @@ jobs:
           create_credentials_file: true
           export_environment_variables: true
       - name: Deploy checked commit
+        if: steps.current.outputs.current == 'true'
         env:
           GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-          DEPLOY_BRANCH: ${{ vars.DEPLOY_BRANCH || 'main' }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          latest_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$DEPLOY_BRANCH" --jq .object.sha)"
-          if [[ "$latest_sha" != "$GITHUB_SHA" ]]; then
-            echo "::notice::Skipping superseded commit $GITHUB_SHA; branch is at $latest_sha"
-            exit 0
-          fi
-          npm exec -- firebase deploy --project "$GCP_PROJECT_ID" --only hosting --non-interactive
+        run: npm exec -- firebase deploy --project "$GCP_PROJECT_ID" --only hosting --non-interactive

@@ -3,7 +3,9 @@
 **Status:** Revised requirements and architecture direction; launch limits pending\
 **Platform name (working):** Sisyphus\
 **GCP project display name:** Sisyphus\
-**Development GCP project ID:** `sisyphus-platform-dev`\
+**Development GCP project ID:** `idle-sisyphus`\
+**Development GCP project number:** `597305374429`\
+**GitHub repository:** `RamirezTuco/idle-sisyphus` (deployment branch: `main`)\
 **Future production GCP project ID:** `sisyphus-platform-prod`
 (proposed)
 
@@ -99,11 +101,12 @@ rather than creating a separate GCP project for every application.
 
 ### Initial setup
 
-Create one GCP project for development, experimentation, and disposable
-public demos:
+Use the existing GCP project for development, experimentation, and
+disposable public demos; do not create another development project:
 
 -   **Display name:** `Sisyphus`
--   **Project ID:** `sisyphus-platform-dev`
+-   **Project ID:** `idle-sisyphus`
+-   **Project number:** `597305374429`
 
 This project can contain the resources for multiple applications, with
 clear naming and access boundaries.
@@ -380,6 +383,12 @@ application to use them.
 ## 8. Source control and deployment
 
 -   Use GitHub as the source-control and CI/CD starting point.
+-   The initial static site uses `RamirezTuco/idle-sisyphus` on `main`.
+    Deployment is disabled until the repository variable `DEPLOY_ENABLED`
+    is set to exactly `true` after infrastructure and identity setup.
+    Once enabled, every main push, including documentation-only changes,
+    or a trusted manual run may deploy after validation. Superseded runs
+    are skipped in favour of the newer commit's run.
 -   Deploy applications independently.
 -   A change to one application should not require rebuilding or
     redeploying unrelated applications.

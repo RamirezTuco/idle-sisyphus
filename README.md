@@ -26,26 +26,31 @@ to loopback and is for development, not production.
 
 Hosting serves only `public/`; source, Terraform state, and credentials are
 never part of the site. Firebase supplies HTTPS and the initial
-`https://<project-id>.web.app` address, so a custom domain is not required.
+`https://idle-sisyphus.web.app` address for this project, so a custom domain
+is not required.
 
-1. Create or choose a GCP project and a GitHub repository. The suggested
-   project ID is `sisyphus-platform-dev`, subject to availability.
+1. Use the existing GCP project `idle-sisyphus` (number `597305374429`) and
+   GitHub repository `RamirezTuco/idle-sisyphus`, deployment branch `main`.
 2. Follow [infrastructure setup](infra/README.md) to enable Firebase
    Hosting and create the restricted GitHub deployment identity.
-3. Configure the repository variables described there. Push the code to
-   the configured deployment branch to deploy through GitHub Actions.
+3. Configure the repository variables described there, leaving deployment
+   disabled until infrastructure is ready. Set `DEPLOY_ENABLED` to exactly
+   `true` to enable deployment on every main push, including documentation
+   changes, or a manual workflow run on main. Setting the variable does not
+   itself trigger a deployment.
 
 For a manual deployment after infrastructure setup:
 
 ```sh
 npx firebase login
-npm run deploy -- --project YOUR_PROJECT_ID
+npm run deploy -- --project idle-sisyphus
 ```
 
-Always supply the project explicitly. No production project or cloud
-resources have been created by adding these files. Configure the repository
-variables described in the infrastructure guide before using deployment
-through GitHub Actions.
+Always supply the project explicitly. Terraform manages Hosting and deployment
+identity in the existing development project; it does not create a production
+project or application backends. Configure the repository variables described
+in the infrastructure guide before using deployment through GitHub Actions.
+The `DEPLOY_ENABLED` switch applies to GitHub Actions, not the manual command.
 
 The first release is a disposable public preview. Before integrating apps
 that retain external-user data, use the production separation and launch
@@ -83,7 +88,8 @@ requirements belong to each integration, not this landing page.
 |---|---|
 | `public/` | Static page, styles, app catalog, and real 404 page |
 | `scripts/serve.js` | Dependency-free local preview server |
-| `tests/` | Node's built-in tests for catalog and preview behaviour |
+| `scripts/deployment-policy.js` | Shared, tested GitHub deployment eligibility and stale-commit checks |
+| `tests/` | Node's built-in tests for catalog, preview, and deployment behaviour |
 | `firebase.json` | Hosting public directory and response headers |
 | `infra/` | Terraform bootstrap and deployment instructions |
 | `.github/workflows/` | Validation and identity-federated hosting deployment |
