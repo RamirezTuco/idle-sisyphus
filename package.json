@@ -9,7 +9,10 @@
   },
   "scripts": {
     "dev": "node scripts/serve.js",
-    "test": "node --test",
+    "test": "node --test tests/*.test.js",
+    "dev:chat-csv": "npm --prefix apps/chat-csv run dev",
+    "test:chat-csv": "npm --prefix apps/chat-csv test",
+    "build:chat-csv": "npm --prefix apps/chat-csv run build",
     "deploy": "firebase deploy --only hosting --non-interactive"
   },
   "devDependencies": {

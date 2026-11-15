@@ -1,0 +1,11 @@
+project_id = "idle-sisyphus"
+# REQUIRED: select a supported region before planning; the database location is immutable.
+# region = "YOUR_APPROVED_REGION"
+# REQUIRED: choose a global request cap; 100 is only an example, not an approved value.
+# global_daily_limit = 100
+daily_limit    = 5
+enable_runtime = false
+access_mode    = "allowlist"
+allowed_uids   = []
+# After separately approved bootstrap publication:
+# seed_image = "REGION-docker.pkg.dev/idle-sisyphus/chat-csv/app@sha256:REAL_64_HEX_DIGEST"

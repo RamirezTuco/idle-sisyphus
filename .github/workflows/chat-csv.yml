@@ -1,0 +1,168 @@
+name: Chat CSV checks and deployment
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+    inputs:
+      publish_only:
+        description: "Publish the approved bootstrap image without updating Cloud Run"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    name: Chat CSV checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/chat-csv
+    env:
+      NEXT_PUBLIC_FIREBASE_API_KEY: ${{ vars.CHAT_CSV_NEXT_PUBLIC_FIREBASE_API_KEY }}
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.CHAT_CSV_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ vars.CHAT_CSV_NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+      NEXT_PUBLIC_FIREBASE_APP_ID: ${{ vars.CHAT_CSV_NEXT_PUBLIC_FIREBASE_APP_ID }}
+      NEXT_PUBLIC_PLATFORM_URL: ${{ vars.CHAT_CSV_NEXT_PUBLIC_PLATFORM_URL || 'https://idle-sisyphus.web.app' }}
+    outputs:
+      deploy_eligible: ${{ steps.deployment.outputs.eligible }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/chat-csv/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Determine deployment eligibility
+        id: deployment
+        working-directory: .
+        env:
+          DEPLOY_ENABLED: ${{ vars.CHAT_CSV_DEPLOY_ENABLED || 'false' }}
+          DEPLOY_BRANCH: ${{ vars.DEPLOY_BRANCH || 'main' }}
+        run: node scripts/deployment-policy.js eligible
+
+  terraform:
+    name: Chat CSV Terraform checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: infra/chat-csv
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+          terraform_wrapper: false
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -input=false -lockfile=readonly
+      - run: terraform validate -no-color
+
+  deploy:
+    name: Publish Chat CSV image and update existing service
+    needs: [app, terraform]
+    if: >-
+      vars.CHAT_CSV_DEPLOY_ENABLED == 'true' &&
+      needs.app.outputs.deploy_eligible == 'true' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == format('refs/heads/{0}', vars.DEPLOY_BRANCH || 'main') &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: chat-csv-deploy-${{ vars.GCP_PROJECT_ID || github.repository }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.CHAT_CSV_REGION }}
+      IMAGE_BASE: ${{ vars.CHAT_CSV_IMAGE_BASE }}
+      WIF_PROVIDER: ${{ vars.CHAT_CSV_WIF_PROVIDER }}
+      DEPLOY_SERVICE_ACCOUNT: ${{ vars.CHAT_CSV_DEPLOY_SERVICE_ACCOUNT }}
+      NEXT_PUBLIC_FIREBASE_API_KEY: ${{ vars.CHAT_CSV_NEXT_PUBLIC_FIREBASE_API_KEY }}
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.CHAT_CSV_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ vars.CHAT_CSV_NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+      NEXT_PUBLIC_FIREBASE_APP_ID: ${{ vars.CHAT_CSV_NEXT_PUBLIC_FIREBASE_APP_ID }}
+      NEXT_PUBLIC_PLATFORM_URL: ${{ vars.CHAT_CSV_NEXT_PUBLIC_PLATFORM_URL || 'https://idle-sisyphus.web.app' }}
+      PUBLISH_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_only == true }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Check current branch commit before cloud authentication
+        id: current
+        env:
+          DEPLOY_BRANCH: ${{ vars.DEPLOY_BRANCH || 'main' }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$DEPLOY_BRANCH" --jq .object.sha)"
+          LATEST_SHA="$latest_sha" node scripts/deployment-policy.js current
+      - name: Check app-specific deployment variables
+        if: steps.current.outputs.current == 'true'
+        run: |
+          node --input-type=module -e '
+            for (const name of ["GCP_PROJECT_ID", "REGION", "IMAGE_BASE", "WIF_PROVIDER", "DEPLOY_SERVICE_ACCOUNT", "NEXT_PUBLIC_FIREBASE_API_KEY", "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN", "NEXT_PUBLIC_FIREBASE_PROJECT_ID", "NEXT_PUBLIC_FIREBASE_APP_ID", "NEXT_PUBLIC_PLATFORM_URL"]) {
+              if (!process.env[name]) { console.error(`::error::Set ${name} using the Chat CSV foundation outputs`); process.exit(1); }
+            }
+          '
+          test "$IMAGE_BASE" = "$REGION-docker.pkg.dev/$GCP_PROJECT_ID/chat-csv/app" || { echo "::error::IMAGE_BASE must be the app-specific Terraform output"; exit 1; }
+          test "$NEXT_PUBLIC_FIREBASE_PROJECT_ID" = "$GCP_PROJECT_ID" || { echo "::error::Firebase project must match the runtime project"; exit 1; }
+          test "$DEPLOY_SERVICE_ACCOUNT" = "chat-csv-deploy@$GCP_PROJECT_ID.iam.gserviceaccount.com" || { echo "::error::Use only the Chat CSV deploy identity"; exit 1; }
+          case "$WIF_PROVIDER" in
+            projects/*/locations/global/workloadIdentityPools/sisyphus-github/providers/chat-csv) ;;
+            *) echo "::error::Use only the Chat CSV WIF provider"; exit 1 ;;
+          esac
+      - name: Build checked standalone app without cloud credentials
+        if: steps.current.outputs.current == 'true'
+        run: |
+          docker build --tag "$IMAGE_BASE:$GITHUB_SHA" \
+            --build-arg NEXT_PUBLIC_FIREBASE_API_KEY="$NEXT_PUBLIC_FIREBASE_API_KEY" \
+            --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN" \
+            --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID="$NEXT_PUBLIC_FIREBASE_PROJECT_ID" \
+            --build-arg NEXT_PUBLIC_FIREBASE_APP_ID="$NEXT_PUBLIC_FIREBASE_APP_ID" \
+            --build-arg NEXT_PUBLIC_PLATFORM_URL="$NEXT_PUBLIC_PLATFORM_URL" \
+            apps/chat-csv
+      - uses: google-github-actions/auth@v3
+        if: steps.current.outputs.current == 'true'
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.CHAT_CSV_WIF_PROVIDER }}
+          service_account: ${{ vars.CHAT_CSV_DEPLOY_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+          export_environment_variables: true
+      - uses: google-github-actions/setup-gcloud@v3
+        if: steps.current.outputs.current == 'true'
+      - name: Publish immutable image
+        id: image
+        if: steps.current.outputs.current == 'true'
+        run: |
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          docker push "$IMAGE_BASE:$GITHUB_SHA"
+          digest="$(gcloud artifacts docker images describe "$IMAGE_BASE:$GITHUB_SHA" --project "$GCP_PROJECT_ID" --format='value(image_summary.digest)')"
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "::error::Registry did not return an immutable digest"; exit 1; }
+          echo "image=$IMAGE_BASE@$digest" >> "$GITHUB_OUTPUT"
+          printf '### Chat CSV image\n`%s@%s`\n\nCommit: `%s`\nPublish only: `%s`\n' "$IMAGE_BASE" "$digest" "$GITHUB_SHA" "$PUBLISH_ONLY" >> "$GITHUB_STEP_SUMMARY"
+      - name: Update only the Terraform-created service
+        if: steps.current.outputs.current == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.publish_only == true)
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          gcloud run services describe chat-csv --project "$GCP_PROJECT_ID" --region "$REGION" --format='value(metadata.name)'
+          gcloud run deploy chat-csv --image "$IMAGE" --project "$GCP_PROJECT_ID" --region "$REGION" --quiet

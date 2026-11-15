@@ -234,8 +234,9 @@ Hosting support versus a Cloud Run container.
 
 Phase 0 is a deployable static Sisyphus landing page on Firebase Hosting,
 with unavailable directory entries for Chat CSV, Browser Task Runner, and
-Agentic Learning. Implementations of those applications will be supplied
-later. Do not expose placeholder entries as working applications.
+Agentic Learning. Chat CSV's supplied implementation is being adapted locally;
+the other implementations will be supplied later. Do not expose placeholder
+entries as working applications.
 
 The foundation includes Terraform for an existing GCP project and
 GitHub Actions deployment using short-lived credentials. It does not
@@ -254,6 +255,38 @@ Do not introduce Pub/Sub, a dedicated LiteLLM proxy deployment, or a
 general-purpose workflow platform solely for anticipated future use.
 Preserve the existing LiteLLM abstraction without requiring an extra
 network service.
+
+### Chat CSV integration scope
+
+Chat CSV is an independent Next.js Cloud Run container, not a Python rewrite
+or a runtime-worker task. Preserve the supplied upload/question, Gemini
+analysis, result rendering, and download/copy workflow. Its initial adapter
+uses Gemini through a server-only module; the approved deployment uses Vertex
+AI with runtime identity and direct Cloud Billing, avoiding Developer API
+prepayment. No separate proxy service is needed. Use current supported models:
+Gemini 2.5 Flash was retired on Vertex on October 20, 2026; the deployment uses
+its recommended economical replacement, Gemini 3.5 Flash-Lite.
+
+- Support CSV and XLSX immediately, analyzing the first XLSX worksheet and
+  using cached formula results without executing spreadsheet formulas.
+- Require verified Firebase Google sign-in for every AI query. Default to
+  an explicit Firebase UID allowlist for the development preview.
+- Enforce atomic per-user and global daily reservations on the server,
+  using a named `chat-csv` Firestore database with deny-all client rules.
+  Accepted attempts may consume allowance even if the provider fails.
+- Execute generated analysis only in a bounded isolated interpreter with no
+  Node, filesystem, or network bindings; never use host `new Function`.
+- Bound upload, decompressed workbook, dataset, model sample, generated code,
+  execution, and result sizes. Do not persist uploaded content, questions,
+  model code, or results; expire usage metadata through Firestore TTL.
+- Keep payment/subscription placeholders out of the release until real billing
+  exists. Do not copy source credentials, accounts, or database content.
+- Use separate app Terraform state, deployment/runtime identities, image
+  repository, secret, and workflow. Keep deployment disabled until the region,
+  global cap, Firebase setup, secret, and staged cloud operations are approved.
+- Keep the portal catalog entry unavailable until an actual approved app
+  deployment is verified. Broader external-user access still requires the
+  production separation and launch gates elsewhere in this document.
 
 ## 6. Backend and agent execution requirements
 
