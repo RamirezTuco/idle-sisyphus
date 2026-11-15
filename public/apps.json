@@ -1,0 +1,26 @@
+[
+  {
+    "id": "chat-csv",
+    "name": "Chat CSV",
+    "category": "Understand your data",
+    "description": "Explore spreadsheets through conversation. Bring a CSV or XLSX file and ask better questions.",
+    "status": "coming-soon",
+    "url": null
+  },
+  {
+    "id": "btr",
+    "name": "Browser Task Runner",
+    "category": "Simplify the everyday",
+    "description": "A simple tool for browser tasks. Its existing implementation will be connected here.",
+    "status": "coming-soon",
+    "url": null
+  },
+  {
+    "id": "agentic-learning",
+    "name": "Agentic Learning",
+    "category": "Follow your curiosity",
+    "description": "An adaptive learning experience that helps you explore ideas and build understanding.",
+    "status": "coming-soon",
+    "url": null
+  }
+]

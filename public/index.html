@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Sisyphus is a growing collection of independent tools for data, browser tasks, and learning.">
+    <meta name="theme-color" content="#f5f2eb">
+    <title>Sisyphus | Small tools. Steady progress.</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="page-shell">
+      <header class="site-header">
+        <a class="wordmark" href="/" aria-label="Sisyphus home"><span class="brand-mark" aria-hidden="true"></span>Sisyphus</a>
+        <nav aria-label="Main navigation"><a href="#tools">The tools</a><a href="#about">The idea</a></nav>
+      </header>
+      <main id="main">
+        <section class="hero" aria-labelledby="hero-title">
+          <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span>An independent collection. Always evolving.</p>
+          <h1 id="hero-title">Small tools.<br>Steady <em>progress.</em></h1>
+          <p class="hero-description">A place for useful experiments. Tools to make sense of data, simplify browser tasks, and follow your curiosity.</p>
+          <a class="primary-link" href="#tools">Explore the collection <span aria-hidden="true">&darr;</span></a>
+          <div class="hill-art" aria-hidden="true"><div class="boulder"></div><div class="hill"></div><span class="hill-caption">One step, then another.</span></div>
+        </section>
+        <section id="tools" class="tools-section" aria-labelledby="tools-title">
+          <div class="section-heading"><div><p class="eyebrow">The collection</p><h2 id="tools-title">A few things in motion.</h2></div><p id="directory-status" role="status">Loading the tools...</p></div>
+          <div id="app-directory" class="app-grid" aria-busy="true"></div>
+          <noscript><p>JavaScript is needed to load the directory. Chat CSV, Browser Task Runner, and Agentic Learning are coming soon; no apps are available here yet.</p></noscript>
+        </section>
+        <section id="about" class="about-section" aria-labelledby="about-title">
+          <p class="eyebrow">The idea</p>
+          <h2 id="about-title">Keep making things useful.</h2>
+          <p>Sisyphus brings independent experiments under one roof. Each tool has its own purpose and can grow at its own pace. The common thread: a little less friction, a little more possibility.</p>
+          <p class="demo-note">This is an early platform preview. The apps are not connected yet. This landing page has no accounts, uploads, AI calls, or background workers.</p>
+        </section>
+      </main>
+      <footer class="site-footer"><span>Sisyphus</span><p>Built for curiosity. Improved through use.</p><a href="#main">Back to top &uarr;</a></footer>
+    </div>
+    <template id="app-card">
+      <article class="app-card">
+        <div class="card-top"><span class="card-number" aria-hidden="true"></span><span class="card-category"></span></div>
+        <h3></h3>
+        <p class="card-description"></p>
+        <div class="card-footer"></div>
+      </article>
+    </template>
+  </body>
+</html>
