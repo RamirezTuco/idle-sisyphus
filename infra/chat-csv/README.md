@@ -264,8 +264,11 @@ and env: `GOOGLE_CLOUD_PROJECT`, `FIRESTORE_DATABASE_ID=chat-csv`,
 `CHAT_CSV_DAILY_LIMIT=5`,
 `CHAT_CSV_GLOBAL_DAILY_LIMIT`, `CHAT_CSV_ACCESS_MODE`, `CHAT_CSV_ALLOWED_UIDS`,
 `CHAT_CSV_USAGE_RETENTION_DAYS=7`.
-It pins the initial image; only `template[0].containers[0].image` is ignored for
-future CI image changes. Runtime is 0–2 instances, 1 CPU/1 GiB each, concurrency
+It pins the initial image; the image and `gcloud` client/version metadata are
+ignored for future CI updates. Scaling, identity, IAM, and environment remain
+Terraform-owned. Service-wide minimum instances is explicitly zero so the
+legacy `gcloud` update cannot introduce perpetual default-scaling drift.
+Runtime is 0–2 instances, 1 CPU/1 GiB each, concurrency
 1, timeout 90 seconds, HTTP startup probe `/api/health` on port 8080.
 Cloud Run supplies `PORT`; the standalone Node 24 container must listen on all
 interfaces. Runtime deployment is deletion-protected.

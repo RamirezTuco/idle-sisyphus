@@ -21,7 +21,8 @@ test("Terraform runtime settings match the app's environment contract", async ()
     assert.equal(line?.split("=").slice(1).join("=").trim(), expression, name);
   }
   assert.match(runtime, /max_instance_request_concurrency\s*=\s*1/);
-  assert.match(runtime, /ignore_changes\s*=\s*\[template\[0\]\.containers\[0\]\.image\]/);
+  assert.match(runtime, /ignore_changes\s*=\s*\[template\[0\]\.containers\[0\]\.image, client, client_version\]/);
+  assert.match(runtime, /scaling\s*\{\s*min_instance_count\s*=\s*0\s*\}/);
 });
 
 test("the app's shared-pool identity cannot match the portal identity binding", async () => {

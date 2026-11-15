@@ -6,6 +6,10 @@ resource "google_cloud_run_v2_service" "app" {
   ingress             = "INGRESS_TRAFFIC_ALL"
   deletion_protection = true
 
+  scaling {
+    min_instance_count = 0
+  }
+
   template {
     service_account                  = google_service_account.runtime.email
     timeout                          = "90s"
@@ -79,7 +83,7 @@ resource "google_cloud_run_v2_service" "app" {
     google_firestore_field.expiration,
   ]
   lifecycle {
-    ignore_changes = [template[0].containers[0].image]
+    ignore_changes = [template[0].containers[0].image, client, client_version]
   }
 }
 
